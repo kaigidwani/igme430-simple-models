@@ -333,61 +333,30 @@ const updateLast = (req, res) => {
   });
 };
 
-const ageDogByName = async (req, res) => {
+const ageDogByName = (req, res) => {
   // Throw error if not given name
   if (!req.body.name) {
     return res.status(400).json({ error: 'Name is required to perform a search' });
   }
 
-  /* If they do give us a name to search, we will as the database for a dog with that name.
-     Remember that since we are interacting with the database, we want to wrap our code in a
-     try/catch in case the database throws an error or doesn't respond.
-  */
-  let doc;
-  try {
-    /* Just like Cat.find() in hostPage1() above, Mongoose models also have a .findOne()
-       that will find a single document in the database that matches the search parameters.
-       This function is faster, as it will stop searching after it finds one document that
-       matches the parameters. The downside is you cannot get multiple responses with it.
-
-       One of three things will occur when trying to findOne in the database.
-        1) An error will be thrown, which will stop execution of the try block and move to
-            the catch block.
-        2) Everything works, but the name was not found in the database returning an empty
-            doc object.
-        3) Everything works, and an object matching the search is found.
-    */
-    doc = await Dog.findOne({ name: req.body.name }).exec();
-
-    // Debugging that the dog name is recieved and that doc.name isn't null
-    console.log(`doc recieved dog name. doc.name is: ${doc.name}`);
-  } catch (err) {
-    // If there is an error, log it and send the user an error message.
-    console.log(err);
-    return res.status(500).json({ error: 'Something went wrong' });
-  }
-
-  // If we do not find something that matches our search, doc will be empty.
-  if (!doc) {
-    return res.status(404).json({ error: 'No dogs found' });
-  }
-
-  const updatePromise = Dog.findOneAndUpdate({}, { $inc: { age: 1 } }, {
+  const updatePromise = Dog.findOneAndUpdate({ name: req.body.name }, { $inc: { age: 1 } }, {
     returnDocument: 'after', // Populates doc in the .then() with the version after update
     sort: { createdDate: 'descending' },
   }).lean().exec();
 
-  // Debugging making sure that the dog name is being recieved and not undefined
-  console.log(`About to use doc.name. It is currently: ${doc.name}`);
-
-  // TODO: Figure out why when doc.name is accessed in UpdatePromise.then
-  // the server crashes, when it works fine in console logs.
-
   // If we successfully save/update them in the database, send back the dog's info.
-  updatePromise.then((doc) => res.json({
-    name: doc.name,
-    age: doc.age,
-  }));
+  updatePromise.then((doc) => {
+    // If we do not find something that matches our search, doc will be empty.
+    if (!doc) {
+      return res.status(404).json({ error: 'No dogs found' });
+    }
+
+    // Otherwise return our result
+    return res.json({
+      name: doc.name,
+      age: doc.age,
+    });
+  });
 
   // If something goes wrong saving to the database, log the error and send a message to the client.
   updatePromise.catch((err) => {
@@ -395,8 +364,8 @@ const ageDogByName = async (req, res) => {
     return res.status(500).json({ error: 'Something went wrong' });
   });
 
-  // Otherwise, we got a result and will send it back to the user.
-  return res.json({ name: doc.name, age: doc.age });
+  // Return our result to the user
+  return res.json;
 };
 
 // A function to send back the 404 page.
